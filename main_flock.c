@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
                 else if (!*togglePtr && !*fileRead)
                     readProcess(fd, fileWritten, fileRead);
             }
+            close(fd);
     }
 
     return EXIT_SUCCESS;
