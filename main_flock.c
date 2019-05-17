@@ -8,7 +8,6 @@
 
 #define FILE "/Users/fennie/Library/Mobile Documents/com~apple~CloudDocs/Documents/School/HAW/19SS/OS/Lab/Lab 2/Lab_2_2_0/file2.txt"
 #define TEXT "THIS IS NEW TEXT!\0"
-#define N_CYCLES 2
 
 void sigh(int sig);
 char *mapAnonSharedVariable(void);
@@ -19,14 +18,14 @@ void writeToFile(int fd);
 ssize_t readFromFile(int fd);
 void eraseFile(int fd);
 void closeFile(int fd);
+void readProcess(int fd, const char *fileWritten, char *fileRead);
+void writeEraseProcess(int fd, char *fileWritten, char *fileRead, char* togglePtr);
 
 volatile bool running = true;
 
 
 int main(int argc, char *argv[])
 {
-    printf("Cycles = %d\n", *argv[1]);
-
     int fd;
 
     signal(SIGINT, sigh);
@@ -52,40 +51,10 @@ int main(int argc, char *argv[])
             while(running)
             {
                 if (*togglePtr && !*fileRead)
-                {
-                    if (*fileWritten)
-                    {
-                        lockFile(fd);
-                        if (readFromFile(fd))
-                            *fileRead = 1;
-                        unlockFile(fd);
-                    }
-                }
+                    readProcess(fd, fileWritten, fileRead);
                 else if (!*togglePtr)
-                {
-                    if (!*fileWritten && !*fileRead)
-                    {
-                        lockFile(fd);
-                        writeToFile(fd);
-                        *fileWritten = 1;
-                        unlockFile(fd);
-                    }
-
-                    if (*fileWritten && *fileRead)
-                    {
-                        lockFile(fd);
-                        eraseFile(fd);
-
-                        // toggle
-                        *fileWritten = 0;
-                        *fileRead = 0;
-                        *togglePtr = 1;
-
-                        unlockFile(fd);
-                    }
-                }
+                    writeEraseProcess(fd, fileWritten, fileRead, togglePtr);
             }
-
             close(fd);
 
             break;
@@ -95,42 +64,50 @@ int main(int argc, char *argv[])
             while(running)
             {
                 if (*togglePtr)
-                {
-                    if (!*fileWritten && !*fileRead)
-                    {
-                        lockFile(fd);
-                        writeToFile(fd);
-                        *fileWritten = 1;
-                        unlockFile(fd);
-                    }
-
-                    if (*fileWritten && *fileRead)
-                    {
-                        lockFile(fd);
-                        eraseFile(fd);
-
-                        // toggle
-                        *fileWritten = 0;
-                        *fileRead = 0;
-                        *togglePtr = 0;
-
-                        unlockFile(fd);
-                    }
-                }
+                    writeEraseProcess(fd, fileWritten, fileRead, togglePtr);
                 else if (!*togglePtr && !*fileRead)
-                {
-                    if (*fileWritten && !*fileRead)
-                    {
-                        lockFile(fd);
-                        if (readFromFile(fd))
-                            *fileRead = 1;
-                        unlockFile(fd);
-                    }
-                }
+                    readProcess(fd, fileWritten, fileRead);
             }
     }
 
     return EXIT_SUCCESS;
+}
+
+
+void readProcess(int fd, const char *fileWritten, char *fileRead)
+{
+    if (*fileWritten)
+    {
+        lockFile(fd);
+        if (readFromFile(fd))
+            *fileRead = 1;
+        unlockFile(fd);
+    }
+}
+
+
+void writeEraseProcess(int fd, char *fileWritten, char *fileRead, char* togglePtr)
+{
+    if (!*fileWritten && !*fileRead)
+    {
+        lockFile(fd);
+        writeToFile(fd);
+        *fileWritten = 1;
+        unlockFile(fd);
+    }
+
+    if (*fileWritten && *fileRead)
+    {
+        lockFile(fd);
+        eraseFile(fd);
+
+        // toggle
+        *fileWritten = 0;
+        *fileRead = 0;
+        *togglePtr = (*togglePtr) ? (char) 0 : (char) 1;
+
+        unlockFile(fd);
+    }
 }
 
 
