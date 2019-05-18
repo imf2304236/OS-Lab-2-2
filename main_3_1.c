@@ -7,55 +7,88 @@
 #include <signal.h>
 #include <stdbool.h>
 
-#define MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 #define TEXT "THIS IS NEW TEXT!\0"
+#define FILE "testfile.txt"
 
-void sigh(int);
+static void sigh(int);
 
 volatile bool running = false;
 
 int main(void)
 {
-    int fd;
+    int fd, flags;
     bool running = true;
-    bool done = false;
-    char ch;
-    int cnt = 0;
+    struct sigaction sa;
 
-    signal(SIGINT, sigh);
-
-    // creating datafile
-    fd = open("testfile.txt", O_CREAT | O_RDWR | O_TRUNC | O_SYNC, MODE);
-    if (fd == -1) {
-        fprintf (stderr, "cannot create file testfile.txt - %s\n", strerror(errno));
-        return EXIT_FAILURE;
+    // Configure signal handler
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    sa.sa_handler = sigh;
+    if (sigaction(SIGIO, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        exit(EXIT_FAILURE);
     }
-    fprintf (stdout, "datafile \"testfile.txt\" created successfully\n");
 
-    ssize_t bytesWritten = write(fd, TEXT, strlen(TEXT));
-    if (bytesWritten == 0) {
+    if (fd = open(FILE, O_CREAT | O_WRONLY, MODE) == -1)
+    {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
+
+    if (write(fd, TEXT, strlen(TEXT)) <= 0)
+    {
         perror("write");
         exit(EXIT_FAILURE);
     }
-    printf("[PID %ld] Text written to file.\n", (long) getpid());
 
-    while(!done)
+    if (close(fd) == -1)
     {
-        while (read(fd, &ch, 1) > 0 && !done) {
-            printf("cnt=%d; read %c\n", cnt, ch);
-            done = ch == '#';
-        }
+        perror("close");
+        exit(EXIT_FAILURE);
     }
 
-    // closing and removing datafile
-    close(fd);
-    fprintf (stdout, "PARENT: file closed\n");
-    remove("testfile.txt");
+    if (fd = open(FILE, O_RDONLY | O_SYNC | O_RSYNC) == -1)
+    {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
 
-    return EXIT_SUCCESS;
+    // Set process as signal receiver
+    if (fcntl(fd, F_SETOWN, getpid()) == -1)
+    {
+        perror("fcntl");
+        exit(EXIT_FAILURE);
+    }
+
+    // Enable signal
+    flags = fcntl(fd, F_GETFL);
+    if (fcntl(fd, F_SETFL, flags | O_ASYNC | O_NONBLOCK) == -1)
+    {
+        perror("fcntl");
+        exit(EXIT_FAILURE);
+    }
+
+    while(running) {
+        // pause();
+
+        // fd = open(FILE, O_RDONLY);
+        char buffer[BUFSIZ] = "\0";
+        // read(fd, buffer, BUFSIZ);
+        printf("[PID %ld] Read \"%s\" from file.\n", (long) getpid(), buffer);
+
+        sleep(1);
+
+        // closing and removing datafile
+        close(fd);
+        fprintf(stdout, "PARENT: file closed\n");
+        remove("testfile.txt");
+        return EXIT_SUCCESS;
+    }
 }
 
-void sigh(int signo)
-{
-    running = false;
+void sigh(int signo) {
+    // if (signo == SIGINT)
+        // running = false;
 }
