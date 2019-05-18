@@ -5,8 +5,10 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <stdbool.h>
+#include <signal.h>
+#include <sys/file.h>
 
-#define FILE "/Users/fennie/Library/Mobile Documents/com~apple~CloudDocs/Documents/School/HAW/19SS/OS/Lab/Lab 2/Lab_2_2_0/file2.txt"
+#define FILE "/home/fennie/CLionProjects/OS-Lab-2-2/file2.txt"
 #define TEXT "THIS IS NEW TEXT!\0"
 
 void sigh(int sig);
@@ -46,29 +48,39 @@ int main(int argc, char *argv[])
         case -1:
             exit(EXIT_FAILURE);
         case 0: // Child
-            fd = openFile(O_RDWR);
-
             while(running)
             {
                 if (*togglePtr && !*fileRead)
+                {
+                    fd = openFile(O_RDONLY);
                     readProcess(fd, fileWritten, fileRead);
+                    closeFile(fd);
+                }
                 else if (!*togglePtr)
+                {
+                    fd = openFile(O_WRONLY | O_SYNC | O_RSYNC);
                     writeEraseProcess(fd, fileWritten, fileRead, togglePtr);
+                    closeFile(fd);
+                }
             }
-            close(fd);
 
             break;
         default: // Parent
-            fd = openFile(O_RDWR);
-
             while(running)
             {
                 if (*togglePtr)
+                {
+                    fd = openFile(O_WRONLY | O_SYNC | O_RSYNC);
                     writeEraseProcess(fd, fileWritten, fileRead, togglePtr);
+                    closeFile(fd);
+                }
                 else if (!*togglePtr && !*fileRead)
+                {
+                    fd = openFile(O_RDONLY);
                     readProcess(fd, fileWritten, fileRead);
+                    closeFile(fd);
+                }
             }
-            close(fd);
     }
 
     return EXIT_SUCCESS;
@@ -89,7 +101,7 @@ void readProcess(int fd, const char *fileWritten, char *fileRead)
 
 void writeEraseProcess(int fd, char *fileWritten, char *fileRead, char* togglePtr)
 {
-    if (!*fileWritten && !*fileRead)
+    if (!*fileWritten)
     {
         lockFile(fd);
         writeToFile(fd);
