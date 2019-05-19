@@ -14,3 +14,9 @@ add_executable(shared_var shared_var.c)
 add_executable(t_flock t_flock.c)
 
 add_executable(Lab_2_2_A main_flock.c)
+
+add_executable(Lab_2_2_B main_fcntl.c)
+
+add_executable(fcntl fcntl.c)
+
+add_executable(Lab_3_1 main_3_1.c)
